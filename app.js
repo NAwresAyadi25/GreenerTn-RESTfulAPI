@@ -5,10 +5,29 @@ const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const bcrypt = require('bcrypt');
 const { google } = require('googleapis');
-
+const swaggerJSDoc= require('swagger-jsdoc');
+const swaggerUi= require('swagger-ui-express');
 const app = express();
 const PORT = process.env.PORT || 3000;
+ 
+const  options = {
+  definition: {
+    openapi:'3.0.0',
+    info: {
+      title: 'GreenerTn API',
+      version: '1.0.0',
+     
+      },
+      servers: [
+        {url: 'http://localhost:3000/' }] 
+    
+    },
+    apis: ['app.js']
+  }
+   
 
+const swaggerSpec= swaggerJSDoc(options);
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 // Define your secret key
 const SECRET_KEY = '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';
 
@@ -16,7 +35,7 @@ const SECRET_KEY = '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';
 mongoose.connect('mongodb://localhost:27017/GreenerTn', {
   useNewUrlParser: true,
   useUnifiedTopology: true,
-  ssl: false, // Set to false if not using SSL
+  ssl: false,  
 });
 
 
@@ -37,7 +56,7 @@ const userSchema = new mongoose.Schema({
   confirmationCode: String,
   username: { type: String, unique: true }, // Add a unique constraint for the username
   fullName: String,
-  isVerified: Boolean, // Add a field to track verification status
+  isVerified: Boolean, //  field to track verification status
 });
 
 const User = mongoose.model('User', userSchema);
@@ -107,7 +126,45 @@ const sendConfirmationEmail = async (to, confirmationCode) => {
     });
   });
 };
-
+/**
+ * @swagger
+ * /signup:
+ *   post:
+ *     summary: Create a new user
+ *     description: Endpoint to sign up and issue JWT token
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               username:
+ *                 type: string
+ *               fullName:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: User created successfully. Check your email for confirmation.
+ *         content:
+ *           application/json:
+ *             example:
+ *               message: User created successfully. Check your email for confirmation.
+ *               userId: <user_id>
+ *               email: <user_email>
+ *               username: <user_username>
+ *               fullName: <user_fullName>
+ *               token: <user_token>
+ *       400:
+ *         description: Error creating user
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: Error creating user
+ */
 // Signup and issue JWT token
 app.post('/signup', async (req, res) => {
   try {
@@ -160,6 +217,34 @@ app.post('/signup', async (req, res) => {
 
 
 
+/**
+ * @swagger
+ * /confirm:
+ *   post:
+ *     summary: Confirm user account
+ *     description: Endpoint to confirm user account
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               confirmationCode:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Account confirmed successfully.
+ *         content:
+ *           application/json:
+ *             example:
+ *               message: Account confirmed successfully.
+ *       400:
+ *         description: Invalid token.
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: Invalid token.
+ */
 
 
 // Confirm user account
@@ -180,6 +265,36 @@ app.post('/confirm', async (req, res) => {
     res.status(400).json({ error: error.message });
   }
 });
+/**
+ * @swagger
+ * /login:
+ *   post:
+ *     summary: Login and issue JWT token
+ *     description: Endpoint for user login
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: User logged in successfully.
+ *         content:
+ *           application/json:
+ *             example:
+ *               token: <user_token>
+ *       401:
+ *         description: Invalid email or account not verified.
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: Invalid email or account not verified.
+ */
 
 // Login and issue JWT token
 app.post('/login', async (req, res) => {
@@ -232,7 +347,36 @@ app.use('/vehicle', verifyToken);
 app.use('/journey', verifyToken);
 
 // Now, only users with a valid token can access these routes
-
+/**
+ * @swagger
+ * /user/{userId}:
+ *   get:
+ *     summary: Get user by ID
+ *     description: Endpoint to get user by ID
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: User details retrieved successfully.
+ *         content:
+ *           application/json:
+ *             example:
+ *               _id: <user_id>
+ *               email: <user_email>
+ *               username: <user_username>
+ *               fullName: <user_fullName>
+ *               isVerified: <user_isVerified>
+ *       404:
+ *         description: User not found.
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: User not found.
+ */
 app.get('/user/:userId', async (req, res) => {
   try {
     const user = await User.findById(req.params.userId);
@@ -241,6 +385,53 @@ app.get('/user/:userId', async (req, res) => {
     res.status(404).json({ error: 'User not found' });
   }
 });
+/**
+ * @swagger
+ * /user/{userId}:
+ *   put:
+ *     summary: Update user by ID
+ *     description: Endpoint to update user details by ID
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               username:
+ *                 type: string
+ *               fullName:
+ *                 type: string
+ *               isVerified:
+ *                 type: boolean
+ *     responses:
+ *       200:
+ *         description: User details updated successfully.
+ *         content:
+ *           application/json:
+ *             example:
+ *               _id: <user_id>
+ *               email: <user_email>
+ *               username: <user_username>
+ *               fullName: <user_fullName>
+ *               isVerified: <user_isVerified>
+ *       404:
+ *         description: User not found.
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: User not found.
+ */
+
 // Update user by ID
 app.put('/user/:userId', async (req, res) => {
   try {
@@ -250,6 +441,28 @@ app.put('/user/:userId', async (req, res) => {
     res.status(404).json({ error: 'User not found' });
   }
 });
+/**
+ * @swagger
+ * /user/{userId}:
+ *   delete:
+ *     summary: Delete user by ID
+ *     description: Endpoint to delete a user by ID
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       204:
+ *         description: User deleted successfully.
+ *       404:
+ *         description: User not found.
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: User not found.
+ */
 
 // Delete user by ID
 app.delete('/user/:userId', async (req, res) => {
@@ -264,6 +477,44 @@ app.delete('/user/:userId', async (req, res) => {
 
 
 
+/**
+ * @swagger
+ * /vehicle:
+ *   post:
+ *     summary: Create a new vehicle
+ *     description: Endpoint to create a new vehicle
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               brand:
+ *                 type: string
+ *               model:
+ *                 type: string
+ *               yearsInUsage:
+ *                 type: number
+ *               uniqueId:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Vehicle created successfully.
+ *         content:
+ *           application/json:
+ *             example:
+ *               _id: <vehicle_id>
+ *               brand: <vehicle_brand>
+ *               model: <vehicle_model>
+ *               yearsInUsage: <vehicle_yearsInUsage>
+ *               uniqueId: <vehicle_uniqueId>
+ *       400:
+ *         description: Error creating vehicle.
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: Error creating vehicle.
+ */
 
 
 // CRUD operations for Vehicle
@@ -276,7 +527,37 @@ app.post('/vehicle', async (req, res) => {
       res.status(400).json({ error: error.message });
     }
   });
-  
+  /**
+ * @swagger
+ * /vehicle/{vehicleId}:
+ *   get:
+ *     summary: Get vehicle by ID
+ *     description: Endpoint to get vehicle by ID
+ *     parameters:
+ *       - in: path
+ *         name: vehicleId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Vehicle details retrieved successfully.
+ *         content:
+ *           application/json:
+ *             example:
+ *               _id: <vehicle_id>
+ *               brand: <vehicle_brand>
+ *               model: <vehicle_model>
+ *               yearsInUsage: <vehicle_yearsInUsage>
+ *               uniqueId: <vehicle_uniqueId>
+ *       404:
+ *         description: Vehicle not found.
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: Vehicle not found.
+ */
+
   app.get('/vehicle/:vehicleId', async (req, res) => {
     try {
       const vehicle = await Vehicle.findById(req.params.vehicleId);
@@ -286,6 +567,28 @@ app.post('/vehicle', async (req, res) => {
     }
   });
  
+/**
+ * @swagger
+ * /vehicle/{vehicleId}:
+ *   delete:
+ *     summary: Delete vehicle by ID
+ *     description: Endpoint to delete vehicle by ID
+ *     parameters:
+ *       - in: path
+ *         name: vehicleId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       204:
+ *         description: Vehicle deleted successfully.
+ *       404:
+ *         description: Vehicle not found.
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: Vehicle not found.
+ */
 
 // Delete vehicle by ID
 app.delete('/vehicle/:vehicleId', async (req, res) => {
@@ -296,6 +599,36 @@ app.delete('/vehicle/:vehicleId', async (req, res) => {
     res.status(404).json({ error: 'Vehicle not found' });
   }
 });
+/**
+ * @swagger
+ * /vehicles:
+ *   get:
+ *     summary: Get all vehicles
+ *     description: Endpoint to get all vehicles
+ *     responses:
+ *       200:
+ *         description: Vehicles retrieved successfully.
+ *         content:
+ *           application/json:
+ *             example:
+ *               - _id: <vehicle_id_1>
+ *                 brand: <vehicle_brand_1>
+ *                 model: <vehicle_model_1>
+ *                 yearsInUsage: <vehicle_yearsInUsage_1>
+ *                 uniqueId: <vehicle_uniqueId_1>
+ *               - _id: <vehicle_id_2>
+ *                 brand: <vehicle_brand_2>
+ *                 model: <vehicle_model_2>
+ *                 yearsInUsage: <vehicle_yearsInUsage_2>
+ *                 uniqueId: <vehicle_uniqueId_2>
+ *               ...
+ *       500:
+ *         description: Internal Server Error.
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: Internal Server Error.
+ */
 
 // Get all vehicles
 app.get('/vehicles', async (req, res) => {
@@ -306,7 +639,46 @@ app.get('/vehicles', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-// Function to send email notification
+ 
+/**
+ * @swagger
+ * /journey:
+ *   post:
+ *     summary: Record a new journey
+ *     description: Endpoint to record a new journey
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               userId:
+ *                 type: string
+ *               vehicleId:
+ *                 type: string
+ *               miles:
+ *                 type: number
+ *               date:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Journey recorded successfully.
+ *         content:
+ *           application/json:
+ *             example:
+ *               _id: <journey_id>
+ *               userId: <journey_userId>
+ *               vehicleId: <journey_vehicleId>
+ *               miles: <journey_miles>
+ *               date: <journey_date>
+ *               carbonEmission: <journey_carbonEmission>
+ *       400:
+ *         description: Error recording journey.
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: Error recording journey.
+ */
 
  // CRUD operations for Journey
  app.post('/journey', async (req, res) => {
@@ -324,6 +696,37 @@ app.get('/vehicles', async (req, res) => {
     res.status(400).json({ error: error.message });
   }
 });
+/**
+ * @swagger
+ * /journey/{journeyId}:
+ *   get:
+ *     summary: Get journey by ID
+ *     description: Endpoint to get journey by ID
+ *     parameters:
+ *       - in: path
+ *         name: journeyId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Journey details retrieved successfully.
+ *         content:
+ *           application/json:
+ *             example:
+ *               _id: <journey_id>
+ *               userId: <journey_userId>
+ *               vehicleId: <journey_vehicleId>
+ *               miles: <journey_miles>
+ *               date: <journey_date>
+ *               carbonEmission: <journey_carbonEmission>
+ *       404:
+ *         description: Journey not found.
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: Journey not found.
+ */
 
 app.get('/journey/:journeyId', async (req, res) => {
   try {
@@ -333,7 +736,7 @@ app.get('/journey/:journeyId', async (req, res) => {
     res.status(404).json({ error: 'Journey not found' });
   }
 });
-// Function to calculate carbon emission based on the provided formula
+// Function to calculate carbon emission 
 function calculateCarbonEmission(miles) {
   // Assuming the formula: 35 miles/gallon and 8.8 kg CO2 is produced using each US gallon of fuel
   const emissionPerGallon = 8.8; // in kg
@@ -344,6 +747,33 @@ function calculateCarbonEmission(miles) {
 
   return carbonEmission;
 }
+/**
+ * @swagger
+ * /suggest/{userId}:
+ *   get:
+ *     summary: Get eco suggestions for a user
+ *     description: Endpoint to get eco suggestions based on user data
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Eco suggestions retrieved successfully.
+ *         content:
+ *           application/json:
+ *             example:
+ *               suggestion: Consider alternating between using your car and going for public transportation. This is based on your average carbon emission <averageEmission> kg.
+ *       500:
+ *         description: Internal Server Error.
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: Internal Server Error.
+ */
+
 // EcoSuggestions
 app.get('/suggest/:userId', async (req, res) => {
   try {
@@ -358,7 +788,7 @@ app.get('/suggest/:userId', async (req, res) => {
    
  
 
-    // You can implement your suggestion logic here based on averageEmission
+      
     res.status(200).json({ suggestion: message });
   } catch (error) {
     res.status(500).json({ error: error.message });
